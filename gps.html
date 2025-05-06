@@ -60,7 +60,6 @@
 
   <img src="logoAOTMS.jpg" alt="Company Logo" class="logo" width="250" />
 
-  <!-- Login Form -->
   <div class="login-container" id="loginContainer">
     <h2>Driver Login</h2>
     <form id="loginForm">
@@ -71,7 +70,6 @@
     </form>
   </div>
 
-  <!-- GPS Output -->
   <div class="gps-container" id="gpsContainer" style="display:none;">
     <h2>📍 Live GPS Tracker</h2>
     <div id="location">
@@ -79,12 +77,12 @@
     </div>
   </div>
 
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js"></script>
+  <!-- Firebase SDKs (Compat for older HTML usage) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
 
   <script>
-    // Firebase config
+    // Firebase config (make sure this is correct)
     const firebaseConfig = {
       apiKey: "AIzaSyCtxRAZMSTfTs0zVrgFSaZtkVNu0M5BGD4",
       authDomain: "aots-13497.firebaseapp.com",
@@ -102,17 +100,14 @@
     let currentUsername = null;
     const output = document.getElementById("location");
 
-    // Login handling
+    // Login
     document.getElementById("loginForm").addEventListener("submit", function (e) {
       e.preventDefault();
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
       const errorMsg = document.getElementById("errorMsg");
 
-      const validUser = "driver";
-      const validPass = "1234";
-
-      if (username === validUser && password === validPass) {
+      if (username === "driver" && password === "1234") {
         currentUsername = username;
         document.getElementById("loginContainer").style.display = "none";
         document.getElementById("gpsContainer").style.display = "block";
@@ -129,38 +124,34 @@
       const timestamp = new Date().toISOString();
 
       output.innerHTML = `
-        <div class="label">Latitude:</div>
-        <div class="value">${lat}</div>
-        <div class="label">Longitude:</div>
-        <div class="value">${lon}</div>
-        <div class="label">Accuracy:</div>
-        <div class="value">${accuracy} meters</div>
-        <div class="label">Last updated:</div>
-        <div class="value">${new Date().toLocaleTimeString()}</div>
+        <div class="label">Latitude:</div><div class="value">${lat}</div>
+        <div class="label">Longitude:</div><div class="value">${lon}</div>
+        <div class="label">Accuracy:</div><div class="value">${accuracy} meters</div>
+        <div class="label">Last updated:</div><div class="value">${new Date().toLocaleTimeString()}</div>
       `;
 
-      if (currentUsername) {
-        const ref = db.ref(`ambulances/${currentUsername}`);
-        const newEntryRef = ref.push();
+      const ref = db.ref("ambulances/" + currentUsername).push();
+      ref.set({
+        latitude: lat,
+        longitude: lon,
+        accuracy: accuracy,
+        timestamp: timestamp
+      })
+      .then(() => {
+        console.log("✅ Location saved");
 
-        newEntryRef.set({
-          latitude: lat,
-          longitude: lon,
-          accuracy: accuracy,
-          timestamp: timestamp
-        })
-        .then(() => {
-          console.log("✅ Location saved to Firebase");
-
-          // Auto-delete after 2 minutes
-          setTimeout(() => {
-            newEntryRef.remove()
-              .then(() => console.log("🗑️ Entry auto-deleted"))
-              .catch(err => console.error("❌ Auto-delete error:", err));
-          }, 2 * 60 * 1000);
-        })
-        .catch(err => console.error("❌ Firebase write error:", err));
-      }
+        // Auto-remove after 2 minutes
+        setTimeout(() => {
+          ref.remove().then(() => {
+            console.log("🗑️ Entry auto-deleted");
+          }).catch(err => {
+            console.error("❌ Delete error:", err);
+          });
+        }, 2 * 60 * 1000); // 2 minutes
+      })
+      .catch(err => {
+        console.error("❌ Write error:", err);
+      });
     }
 
     function handleError(error) {
